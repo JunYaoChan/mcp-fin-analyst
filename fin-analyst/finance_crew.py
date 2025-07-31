@@ -247,7 +247,6 @@ crew1 = Crew(
     agents=[data_collector_agent, valuation_expert_agent, report_writer_agent],
     tasks=[data_collection_task, valuation_analysis_task, report_generation_task],
     process=Process.sequential,
-    verbose=True
 )
 
 # Function to be wrapped inside MCP tool
