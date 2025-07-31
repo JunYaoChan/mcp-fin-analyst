@@ -17,19 +17,27 @@ class CompanyFinancials(BaseModel):
     """Structured output for company financial data"""
     ticker: str = Field(..., description="Stock ticker symbol")
     current_price: float = Field(..., description="Current stock price")
+    price_date: str = Field(..., description="Date of current price data")
     shares_outstanding: float = Field(..., description="Number of shares outstanding")
     market_cap: float = Field(..., description="Market capitalization")
     enterprise_value: float = Field(..., description="Enterprise value")
     revenue_ttm: float = Field(..., description="Trailing twelve months revenue")
+    revenue_period: str = Field(..., description="Period for TTM revenue (e.g., 'TTM ending Q2 2025')")
     ebitda_ttm: float = Field(..., description="Trailing twelve months EBITDA")
     earnings_ttm: float = Field(..., description="Trailing twelve months earnings")
+    earnings_period: str = Field(..., description="Period for TTM earnings")
     free_cash_flow_ttm: float = Field(..., description="Trailing twelve months free cash flow")
+    fcf_period: str = Field(..., description="Period for TTM free cash flow")
     book_value: float = Field(..., description="Book value per share")
+    book_value_date: str = Field(..., description="Date of book value data")
     dividend_yield: float = Field(..., description="Dividend yield")
     growth_rate: float = Field(..., description="Expected growth rate")
+    growth_source: str = Field(..., description="Source of growth rate estimate")
     beta: float = Field(..., description="Stock beta")
     debt: float = Field(..., description="Total debt")
     cash: float = Field(..., description="Cash and equivalents")
+    balance_sheet_date: str = Field(..., description="Date of balance sheet data")
+    data_sources: Dict[str, str] = Field(..., description="Dictionary of data sources and their dates")
     data_as_of: str = Field(default=CURRENT_DATE, description="Date when data was retrieved")
 
 class ValuationMetrics(BaseModel):
@@ -106,41 +114,49 @@ report_generator = Agent(
 # Task 1: Retrieve Financial Data (Updated with specific date requirements)
 data_retrieval_task = Task(
     description=f"""Retrieve the most comprehensive and current financial data for {{company}} as of {CURRENT_DATE}. 
-    You must gather the following data ensuring it is the most recent available:
+    You must gather the following data ensuring it is the most recent available AND CAPTURE THE SOURCE DATE FOR EACH DATA POINT:
     
     1. **Current Market Data (as of {CURRENT_DATE_SHORT})**:
-       - Current stock price (most recent closing price)
-       - Shares outstanding (latest count)
-       - Market capitalization (current)
-       - Enterprise value (current)
+       - Current stock price (most recent closing price) - RECORD THE EXACT DATE
+       - Shares outstanding (latest count) - RECORD THE FILING DATE
+       - Market capitalization (current) - RECORD CALCULATION DATE
+       - Enterprise value (current) - RECORD CALCULATION DATE
     
     2. **Financial Performance (most recent TTM data)**:
-       - TTM revenue, EBITDA, earnings, and free cash flow
-       - Latest quarterly results if available
-       - Year-over-year growth comparisons
+       - TTM revenue, EBITDA, earnings, and free cash flow - RECORD THE TTM PERIOD (e.g., "TTM ending Q2 2025")
+       - Latest quarterly results if available - RECORD THE QUARTER AND FILING DATE
+       - Year-over-year growth comparisons - RECORD THE COMPARISON PERIODS
     
     3. **Balance Sheet Data (most recent quarter)**:
-       - Total debt, cash and equivalents, book value
-       - Working capital and current ratio
+       - Total debt, cash and equivalents, book value - RECORD THE QUARTER END DATE
+       - Working capital and current ratio - RECORD THE STATEMENT DATE
     
     4. **Forward-Looking Data**:
-       - Analyst estimates for next 12 months (as of {CURRENT_DATE})
-       - Historical growth rates and projected growth
-       - Recent analyst revisions and target prices
+       - Analyst estimates for next 12 months (as of {CURRENT_DATE}) - RECORD THE ESTIMATE DATE AND SOURCE
+       - Historical growth rates and projected growth - RECORD THE SOURCE AND DATE
+       - Recent analyst revisions and target prices - RECORD THE REVISION DATES
     
     5. **Market Metrics (current)**:
-       - Dividend yield and payout ratio
-       - Beta and volatility measures
-       - Trading volumes and liquidity metrics
+       - Dividend yield and payout ratio - RECORD THE EX-DIVIDEND DATE AND CALCULATION DATE
+       - Beta and volatility measures - RECORD THE CALCULATION PERIOD
+       - Trading volumes and liquidity metrics - RECORD THE DATA PERIOD
     
     6. **Business Segments** (if applicable):
-       - Revenue breakdown by segment (latest available)
-       - Geographic revenue distribution
+       - Revenue breakdown by segment (latest available) - RECORD THE REPORTING PERIOD
+       - Geographic revenue distribution - RECORD THE REPORTING PERIOD
+    
+    **CRITICAL REQUIREMENT**: For every single data point, you must capture and record:
+    - The exact date when the data was retrieved
+    - The period the data represents (e.g., "Q2 2025", "TTM ending June 30, 2025")
+    - The source of the data (e.g., "10-K filing", "Yahoo Finance", "Analyst consensus")
+    - The filing date or publication date of the source
     
     **Important**: Use search tools for real-time data and supplement with web searches for the most current 
     analyst estimates, recent earnings reports, and any material news from {CURRENT_DATE} or recent days.
-    Always specify the exact date/period for each data point retrieved.""",
-    expected_output=f"A complete CompanyFinancials object with all required financial metrics as of {CURRENT_DATE}",
+    Create a comprehensive data_sources dictionary that maps each data point to its source and date.
+    
+    This information is crucial for transparency and allowing users to assess the recency and reliability of the analysis.""",
+    expected_output=f"A complete CompanyFinancials object with all required financial metrics as of {CURRENT_DATE}, including detailed source dates and data vintage information",
     output_pydantic=CompanyFinancials,
     agent=financial_data_agent,
 )
@@ -208,33 +224,43 @@ report_task = Task(
 
     1. **Report Header**: Company name, current date ({CURRENT_DATE}), and current stock price
     
-    2. **Investment Decision Matrix**: A table showing each valuation method, its signal (BUY/HOLD/SELL), and reasoning
+    2. **Data Sources and Vintage**: A detailed section showing the date and source of each key data point used in the analysis, including:
+       - Stock price data (date and source)
+       - Financial statements (quarter/year and filing date)
+       - Analyst estimates (date of estimates and source)
+       - Market data (date retrieved)
+       - Any other key data points with their respective dates and sources
     
-    3. **Final Assessment**: Overall recommendation based on the majority of signals
+    3. **Investment Decision Matrix**: A table showing each valuation method, its signal (BUY/HOLD/SELL), and reasoning
     
-    4. **Vote Tally**: Count of BUY, HOLD, SELL, and N/A signals from all methods
+    4. **Final Assessment**: Overall recommendation based on the majority of signals
     
-    5. **Key Considerations**: 
+    5. **Vote Tally**: Count of BUY, HOLD, SELL, and N/A signals from all methods
+    
+    6. **Key Considerations**: 
        - Strengths supporting the primary signal
        - Risks and cautionary factors
     
-    6. **Current Market Context**: How current market conditions affect the analysis
+    7. **Current Market Context**: How current market conditions affect the analysis
     
-    7. **Growth-Adjusted Analysis**: Assessment considering growth prospects
+    8. **Growth-Adjusted Analysis**: Assessment considering growth prospects
     
-    8. **Final Recommendation**: Clear actionable recommendation with target price ranges
+    9. **Final Recommendation**: Clear actionable recommendation with target price ranges
+    
+    10. **Data Disclaimer**: A note about the recency and reliability of the data sources used
     
     **Format Requirements**:
     - Use markdown formatting
-    - Include tables for the decision matrix
+    - Include tables for the decision matrix and data sources
     - Bold key findings and signals
     - Use headers and subheaders for organization
     - Include specific numbers and percentages from the analysis
     - Provide clear reasoning for each signal
+    - Clearly show data vintage for transparency
     
     **File Naming**: Save the report as '[COMPANY_TICKER]_investment_report_{CURRENT_DATE_SHORT}.md'
     
-    Use all the data from the CompanyFinancials and ValuationMetrics objects provided by previous tasks to populate the report with specific numbers, calculations, and recommendations.""",
+    Use all the data from the CompanyFinancials and ValuationMetrics objects provided by previous tasks to populate the report with specific numbers, calculations, and recommendations. Ensure the data sources section clearly shows when each piece of information was retrieved and what period it represents.""",
     expected_output=f"A complete investment report dated {CURRENT_DATE} saved as a markdown file",
     agent=report_generator,
     context=[data_retrieval_task, valuation_task],
