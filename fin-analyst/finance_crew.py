@@ -18,8 +18,58 @@ class ValuationOutput(BaseModel):
     """Structured output for valuation analysis"""
     company: str = Field(..., description="Company name")
     ticker: str = Field(..., description="Stock ticker")
-    metrics: Dict = Field(..., description="All calculated valuation metrics")
-    signals: Dict[str, str] = Field(..., description="Buy/Hold/Sell signals for each method")
+    current_price: float = Field(..., description="Current stock price")
+    
+    # DCF Analysis
+    dcf_value: float = Field(..., description="DCF intrinsic value")
+    dcf_signal: str = Field(..., description="DCF signal: BUY/HOLD/SELL")
+    dcf_details: str = Field(..., description="DCF calculation details")
+    
+    # Payback Time
+    payback_years: float = Field(..., description="Payback time in years")
+    payback_signal: str = Field(..., description="Payback signal: BUY/HOLD/SELL")
+    payback_details: str = Field(..., description="Payback calculation details")
+    
+    # Owner Earnings Yield
+    owner_yield: float = Field(..., description="Owner earnings yield percentage")
+    owner_yield_signal: str = Field(..., description="Owner yield signal: BUY/HOLD/SELL")
+    owner_yield_details: str = Field(..., description="Owner yield details")
+    
+    # Graham Value
+    graham_value: float = Field(..., description="Ben Graham intrinsic value")
+    graham_signal: str = Field(..., description="Graham signal: BUY/HOLD/SELL")
+    graham_details: str = Field(..., description="Graham calculation details")
+    
+    # P/E Analysis
+    pe_ratio: float = Field(..., description="P/E ratio")
+    pe_signal: str = Field(..., description="P/E signal: BUY/HOLD/SELL")
+    pe_details: str = Field(..., description="P/E analysis details")
+    
+    # Asset-Based
+    book_value: float = Field(..., description="Book value per share")
+    asset_signal: str = Field(..., description="Asset-based signal: BUY/HOLD/SELL")
+    asset_details: str = Field(..., description="Asset-based analysis details")
+    
+    # SOTP
+    sotp_value: float = Field(..., description="Sum of parts value")
+    sotp_signal: str = Field(..., description="SOTP signal: BUY/HOLD/SELL")
+    sotp_details: str = Field(..., description="SOTP calculation details")
+    
+    # DDM
+    ddm_value: float = Field(..., description="Dividend discount model value")
+    ddm_signal: str = Field(..., description="DDM signal: BUY/HOLD/SELL")
+    ddm_details: str = Field(..., description="DDM calculation details")
+    
+    # PEG Ratios
+    avg_peg: float = Field(..., description="Average PEG ratio")
+    peg_signal: str = Field(..., description="PEG signal: BUY/HOLD/SELL")
+    peg_details: str = Field(..., description="PEG analysis details")
+    
+    # Summary
+    buy_count: int = Field(..., description="Number of BUY signals")
+    hold_count: int = Field(..., description="Number of HOLD signals")
+    sell_count: int = Field(..., description="Number of SELL signals")
+    na_count: int = Field(..., description="Number of N/A signals")
     final_recommendation: str = Field(..., description="Final investment recommendation")
 
 llm = LLM(
@@ -57,24 +107,28 @@ code_execution_agent = Agent(
     llm=llm,
     verbose=True,
 )
-
-# New agents for valuation crew (crew1)
 data_collector_agent = Agent(
     role="Financial Data Collector",
     goal="Retrieve comprehensive financial data for {company} using the ValuationCalculator",
     backstory="""You are an expert at collecting financial data using various APIs and tools. 
                  You have deep knowledge of financial statements and can extract all necessary 
-                 metrics for valuation analysis.""",
+                 metrics for valuation analysis. You know how to work with the updated 
+                 ValuationCalculator that returns dictionary results with 'value', 'signal', 
+                 and 'details' keys.""",
     llm=llm,
     verbose=True,
 )
 
+# Updated valuation expert agent instructions
 valuation_expert_agent = Agent(
     role="Valuation Expert",
     goal="Calculate all valuation metrics for {company} and determine investment signals",
     backstory="""You are a CFA-certified valuation expert with 20 years of experience. 
                  You excel at applying various valuation methodologies including DCF, 
-                 Graham formulas, and comparative analysis to determine fair values.""",
+                 Graham formulas, and comparative analysis to determine fair values.
+                 You understand that the ValuationCalculator now returns structured 
+                 dictionaries and you know how to extract values, signals, and details 
+                 from these results.""",
     llm=llm,
     verbose=True,
 )
@@ -111,7 +165,6 @@ code_execution_task = Task(
     agent=code_execution_agent,
 )
 
-# New tasks for valuation crew (crew1)
 data_collection_task = Task(
     description="""Use the ValuationCalculator to retrieve all financial data for {company}. 
     Steps:
@@ -129,24 +182,22 @@ data_collection_task = Task(
 )
 
 valuation_analysis_task = Task(
-    description="""Using the financial data provided, analyze all valuation metrics:
+    description="""Using the financial data provided by the data collector, analyze all valuation metrics:
     
-    1. DCF Analysis - Determine if stock is undervalued/overvalued
-    2. Payback Time - Calculate years to recover investment
-    3. Owner Earnings Yield - Compare to 10% benchmark
-    4. Ben Graham Value - Apply intrinsic value formula
-    5. P/E Multiple - Compare to industry standards
-    6. Asset-Based Value - Analyze price to book
-    7. SOTP Analysis - Sum of parts valuation
-    8. DDM - Dividend discount model (if applicable)
-    9. PEG Ratios - Growth-adjusted valuations
+    1. DCF Analysis - Calculate intrinsic value and determine if stock is undervalued/overvalued
+    2. Payback Time - Calculate years to recover investment based on owner earnings
+    3. Owner Earnings Yield - Compare to 10% benchmark (10-cap rule)
+    4. Ben Graham Value - Apply intrinsic value formula: V = EPS × (8.5 + 2g) × 4.4/Y
+    5. P/E Multiple - Compare to industry standards (BUY <15, HOLD 15-25, SELL >25)
+    6. Asset-Based Value - Analyze price to book ratio
+    7. SOTP Analysis - Sum of parts valuation using enterprise value
+    8. DDM - Dividend discount model if dividends are paid
+    9. PEG Ratios - Growth-adjusted valuations for P/E, P/S, P/B, P/FCF
     
-    For each metric, provide:
-    - Calculated value
-    - Buy/Hold/Sell signal
-    - Brief reasoning
+    For each method, extract the value and signal from the dictionary results.
+    Count all signals and determine the overall investment recommendation based on majority vote.
     
-    Count the signals and determine overall recommendation.""",
+    The ValuationCalculator now returns dictionaries with 'value', 'signal', and 'details' keys.""",
     expected_output="Complete valuation analysis with all metrics, signals, and overall recommendation",
     output_pydantic=ValuationOutput,
     agent=valuation_expert_agent,
@@ -154,52 +205,31 @@ valuation_analysis_task = Task(
 )
 
 report_generation_task = Task(
-    description="""Create a comprehensive investment report following the exact template:
-
-    # Investment Decision Matrix
+    description="""Create a comprehensive investment report using the valuation analysis results.
     
-    | Method | Signal | Reason |
-    |--------|--------|---------|
-    | DCF | **{signal}** | {reason} |
-    | Payback Time | **{signal}** | {reason} |
-    | Owner Earnings Yield | **{signal}** | {reason} |
-    | Ben Graham Formula | **{signal}** | {reason} |
-    | P/E Multiples | **{signal}** | {reason} |
-    | Asset-Based | **{signal}** | {reason} |
-    | SOTP | **{signal}** | {reason} |
-    | DDM | **{signal}** | {reason} |
-    | PEG Ratios | **{signal}** | {reason} |
+    Your report should follow this structure:
     
-    ## Final Assessment: **{verdict}**
+    1. **Investment Decision Matrix Table**:
+       - Create a table showing each valuation method, its signal, and reasoning
+       - Include: DCF, Payback Time, Owner Earnings Yield, Ben Graham Formula, P/E Multiples, 
+         Asset-Based, SOTP, DDM, and PEG Ratios
     
-    ### Vote Tally:
-    - **BUY:** {buy_count} methods
-    - **HOLD:** {hold_count} methods  
-    - **SELL:** {sell_count} methods
-    - **N/A:** {na_count} methods
+    2. **Final Assessment**:
+       - State the overall recommendation (BUY/HOLD/SELL) based on majority vote
+       - Show vote tally (number of BUY, HOLD, SELL, N/A signals)
     
-    ## Key Considerations:
+    3. **Key Considerations**:
+       - Explain why the primary signal makes sense with 4 key strengths
+       - List 4 reasons why caution is warranted (risks)
     
-    ### Why {primary_signal}:
-    1. **{strength_1}**
-    2. **{strength_2}**
-    3. **{strength_3}**
-    4. **{strength_4}**
+    4. **Growth-Adjusted Analysis**:
+       - Discuss how growth assumptions impact the valuation
     
-    ### Why Caution Is Warranted:
-    1. **{risk_1}**
-    2. **{risk_2}**
-    3. **{risk_3}**
-    4. **{risk_4}**
+    5. **Final Recommendation**:
+       - Provide detailed recommendation with risk-adjusted target price range
     
-    ## Growth-Adjusted Analysis:
-    {growth_analysis}
-    
-    ## Recommendation: **{recommendation}**
-    {detailed_recommendation}
-    
-    **Risk-Adjusted Target:** ${target_range}
-    
+    Use the valuation results from the previous task to populate all content.
+    Make the report professional and actionable for institutional investors.
     Save the report as {company}_investment_report.md""",
     expected_output="Professional investment report saved as markdown file",
     agent=report_writer_agent,
@@ -250,7 +280,7 @@ def estimate_stock_price(query):
     
     try:
         # Initialize the calculator
-        calculator = ValuationCalculator(company)
+        calculator = get_valuation_data(company)
         
         # Run the valuation crew
         result = crew1.kickoff(inputs={
@@ -267,10 +297,31 @@ def get_valuation_data(ticker: str) -> Dict:
     """Helper function for agents to get valuation data"""
     try:
         calculator = ValuationCalculator(ticker)
-        return calculator.get_comprehensive_valuation()
+        return calculator.get_comprehensive_valuation()  # Returns Dict, not the object
     except Exception as e:
-        return {"error": str(e)}
 
+    
+        return {"error": str(e)}
+    
+    
+# Example of how to extract signals from the new dictionary format
+def extract_signals_from_results(results: Dict) -> Dict[str, str]:
+    """Extract all signals from valuation results"""
+    signals = {}
+    
+    # Extract signals from main metrics
+    for key, result in results.items():
+        if key == 'financial_metrics':
+            continue
+        elif key == 'multiples':
+            # Handle nested multiples dictionary
+            for mult_key, mult_result in result.items():
+                if isinstance(mult_result, dict) and 'signal' in mult_result:
+                    signals[f"{key}_{mult_key}"] = mult_result['signal']
+        elif isinstance(result, dict) and 'signal' in result:
+            signals[key] = result['signal']
+    
+    return signals
 if __name__ == "__main__":
     # Test the valuation crew
     company = input("Enter company to analyze (name or ticker): ")

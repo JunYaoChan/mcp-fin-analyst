@@ -1,12 +1,13 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 
 class ValuationCalculator:
     """
     A comprehensive valuation calculator for financial analysis
+    Returns consistent dictionary format: {'value': float, 'signal': str}
     """
     
     def __init__(self, ticker: str):
@@ -98,7 +99,7 @@ class ValuationCalculator:
             return 0
     
     def calculate_dcf(self, growth_rate: float = None, discount_rate: float = 0.10, 
-                      terminal_growth: float = 0.03, years: int = 10) -> Tuple[float, str]:
+                      terminal_growth: float = 0.03, years: int = 10) -> Dict[str, any]:
         """Calculate DCF intrinsic value per share"""
         try:
             metrics = self.get_financial_metrics()
@@ -110,7 +111,7 @@ class ValuationCalculator:
                 growth_rate = metrics['growth_rate']
             
             if fcf <= 0 or shares <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'Insufficient cash flow data'}
             
             # Project future cash flows
             fcf_projections = []
@@ -136,7 +137,7 @@ class ValuationCalculator:
             intrinsic_value = total_value / shares
             
             # Determine signal
-            margin = (intrinsic_value - current_price) / current_price
+            margin = (intrinsic_value - current_price) / current_price if current_price > 0 else 0
             if margin > 0.20:
                 signal = "BUY"
             elif margin < -0.20:
@@ -144,12 +145,16 @@ class ValuationCalculator:
             else:
                 signal = "HOLD"
             
-            return intrinsic_value, signal
+            return {
+                'value': round(intrinsic_value, 2),
+                'signal': signal,
+                'details': f"Margin of safety: {margin:.1%}"
+            }
         except Exception as e:
             print(f"DCF calculation error: {e}")
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': f'Error: {str(e)}'}
     
-    def calculate_payback_time(self) -> Tuple[float, str]:
+    def calculate_payback_time(self) -> Dict[str, any]:
         """Calculate payback time in years"""
         try:
             metrics = self.get_financial_metrics()
@@ -158,7 +163,7 @@ class ValuationCalculator:
             growth_rate = metrics['growth_rate']
             
             if owner_earnings <= 0:
-                return float('inf'), "N/A"
+                return {'value': float('inf'), 'signal': 'N/A', 'details': 'No positive earnings'}
             
             cumulative = 0
             years = 0
@@ -177,11 +182,15 @@ class ValuationCalculator:
             else:
                 signal = "SELL"
             
-            return years, signal
+            return {
+                'value': round(years, 1),
+                'signal': signal,
+                'details': f"Years to recover investment at {growth_rate:.1%} growth"
+            }
         except:
-            return float('inf'), "N/A"
+            return {'value': float('inf'), 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def calculate_owner_earnings_yield(self) -> Tuple[float, str]:
+    def calculate_owner_earnings_yield(self) -> Dict[str, any]:
         """Calculate owner earnings yield (10 Cap)"""
         try:
             metrics = self.get_financial_metrics()
@@ -189,7 +198,7 @@ class ValuationCalculator:
             market_cap = metrics['market_cap']
             
             if market_cap <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'No market cap data'}
             
             yield_pct = (owner_earnings / market_cap) * 100
             
@@ -201,11 +210,15 @@ class ValuationCalculator:
             else:
                 signal = "SELL"
             
-            return yield_pct, signal
+            return {
+                'value': round(yield_pct, 2),
+                'signal': signal,
+                'details': f"Benchmark: 10% (10-cap rule)"
+            }
         except:
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def calculate_graham_value(self, aaa_yield: float = 4.4) -> Tuple[float, str]:
+    def calculate_graham_value(self, aaa_yield: float = 4.4) -> Dict[str, any]:
         """Calculate Ben Graham's intrinsic value"""
         try:
             metrics = self.get_financial_metrics()
@@ -214,13 +227,13 @@ class ValuationCalculator:
             current_price = metrics['current_price']
             
             if eps <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'No positive earnings'}
             
             # V = EPS × (8.5 + 2g) × 4.4/Y
             intrinsic_value = eps * (8.5 + 2 * growth_rate) * 4.4 / aaa_yield
             
             # Determine signal
-            margin = (intrinsic_value - current_price) / current_price
+            margin = (intrinsic_value - current_price) / current_price if current_price > 0 else 0
             if margin > 0.20:
                 signal = "BUY"
             elif margin < -0.20:
@@ -228,11 +241,15 @@ class ValuationCalculator:
             else:
                 signal = "HOLD"
             
-            return intrinsic_value, signal
+            return {
+                'value': round(intrinsic_value, 2),
+                'signal': signal,
+                'details': f"Graham formula with {growth_rate:.1f}% growth"
+            }
         except:
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def analyze_multiples(self) -> Dict[str, Tuple[float, str]]:
+    def analyze_multiples(self) -> Dict[str, Dict[str, any]]:
         """Analyze P/E and EV/EBITDA multiples"""
         try:
             metrics = self.get_financial_metrics()
@@ -249,9 +266,16 @@ class ValuationCalculator:
                     pe_signal = "HOLD"
                 else:
                     pe_signal = "SELL"
+                pe_details = f"Industry avg: 15-25"
             else:
                 pe_signal = "N/A"
-            results['PE'] = (pe_ratio, pe_signal)
+                pe_details = "No P/E data available"
+            
+            results['PE'] = {
+                'value': round(pe_ratio, 2) if pe_ratio > 0 else 0,
+                'signal': pe_signal,
+                'details': pe_details
+            }
             
             # EV/EBITDA Analysis
             if ev_ebitda > 0:
@@ -261,15 +285,25 @@ class ValuationCalculator:
                     ev_signal = "HOLD"
                 else:
                     ev_signal = "SELL"
+                ev_details = f"Industry avg: 10-15"
             else:
                 ev_signal = "N/A"
-            results['EV_EBITDA'] = (ev_ebitda, ev_signal)
+                ev_details = "No EV/EBITDA data available"
+            
+            results['EV_EBITDA'] = {
+                'value': round(ev_ebitda, 2) if ev_ebitda > 0 else 0,
+                'signal': ev_signal,
+                'details': ev_details
+            }
             
             return results
         except:
-            return {'PE': (0, "N/A"), 'EV_EBITDA': (0, "N/A")}
+            return {
+                'PE': {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'},
+                'EV_EBITDA': {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
+            }
     
-    def calculate_asset_based_value(self) -> Tuple[float, str]:
+    def calculate_asset_based_value(self) -> Dict[str, any]:
         """Calculate asset-based valuation"""
         try:
             metrics = self.get_financial_metrics()
@@ -278,7 +312,7 @@ class ValuationCalculator:
             price_to_book = metrics['price_to_book']
             
             if book_value <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'No book value data'}
             
             # Determine signal based on P/B ratio
             if price_to_book < 1:
@@ -288,11 +322,15 @@ class ValuationCalculator:
             else:
                 signal = "SELL"
             
-            return book_value, signal
+            return {
+                'value': round(book_value, 2),
+                'signal': signal,
+                'details': f"P/B ratio: {price_to_book:.2f}"
+            }
         except:
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def calculate_sotp(self) -> Tuple[float, str]:
+    def calculate_sotp(self) -> Dict[str, any]:
         """Calculate Sum of the Parts valuation"""
         try:
             # This is simplified - in reality, you'd need segment data
@@ -302,13 +340,13 @@ class ValuationCalculator:
             current_price = metrics['current_price']
             
             if enterprise_value <= 0 or shares <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'Insufficient data'}
             
             # Simplified SOTP using EV
             sotp_value = (enterprise_value + metrics['cash'] - metrics['debt']) / shares
             
             # Determine signal
-            margin = (sotp_value - current_price) / current_price
+            margin = (sotp_value - current_price) / current_price if current_price > 0 else 0
             if margin > 0.20:
                 signal = "BUY"
             elif margin < -0.20:
@@ -316,11 +354,15 @@ class ValuationCalculator:
             else:
                 signal = "HOLD"
             
-            return sotp_value, signal
+            return {
+                'value': round(sotp_value, 2),
+                'signal': signal,
+                'details': f"Based on enterprise value"
+            }
         except:
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def calculate_ddm(self, required_return: float = 0.10) -> Tuple[float, str]:
+    def calculate_ddm(self, required_return: float = 0.10) -> Dict[str, any]:
         """Calculate Dividend Discount Model value"""
         try:
             metrics = self.get_financial_metrics()
@@ -328,7 +370,7 @@ class ValuationCalculator:
             current_price = metrics['current_price']
             
             if dividend_yield <= 0:
-                return 0, "N/A"
+                return {'value': 0, 'signal': 'N/A', 'details': 'No dividend payments'}
             
             # Get dividend per share
             annual_dividend = current_price * dividend_yield
@@ -339,7 +381,7 @@ class ValuationCalculator:
             intrinsic_value = next_dividend / (required_return - growth_rate)
             
             # Determine signal
-            margin = (intrinsic_value - current_price) / current_price
+            margin = (intrinsic_value - current_price) / current_price if current_price > 0 else 0
             if margin > 0.20:
                 signal = "BUY"
             elif margin < -0.20:
@@ -347,11 +389,15 @@ class ValuationCalculator:
             else:
                 signal = "HOLD"
             
-            return intrinsic_value, signal
+            return {
+                'value': round(intrinsic_value, 2),
+                'signal': signal,
+                'details': f"Gordon Growth Model ({growth_rate:.1%} growth)"
+            }
         except:
-            return 0, "N/A"
+            return {'value': 0, 'signal': 'N/A', 'details': 'Calculation error'}
     
-    def calculate_peg_ratios(self) -> Tuple[Dict[str, float], str]:
+    def calculate_peg_ratios(self) -> Dict[str, any]:
         """Calculate PEG ratios for various metrics"""
         try:
             metrics = self.get_financial_metrics()
@@ -397,9 +443,13 @@ class ValuationCalculator:
             else:
                 signal = "N/A"
             
-            return peg_ratios, signal
+            return {
+                'value': peg_ratios,
+                'signal': signal,
+                'details': f"Average PEG: {sum(valid_pegs)/len(valid_pegs):.2f}" if valid_pegs else "No valid PEG ratios"
+            }
         except:
-            return {}, "N/A"
+            return {'value': {}, 'signal': 'N/A', 'details': 'Calculation error'}
     
     def get_comprehensive_valuation(self) -> Dict:
         """Get all valuation metrics in one call"""
@@ -416,3 +466,34 @@ class ValuationCalculator:
             'peg_ratios': self.calculate_peg_ratios(),
         }
         return results
+
+# Example usage:
+if __name__ == "__main__":
+    # Example with Apple stock
+    calc = ValuationCalculator("AAPL")
+    
+    # Get individual metrics
+    dcf_result = calc.calculate_dcf()
+    print(f"DCF: ${dcf_result['value']} - {dcf_result['signal']} ({dcf_result['details']})")
+    
+    # Get all valuations
+    all_results = calc.get_comprehensive_valuation()
+    
+    # Count signals
+    signals = []
+    for key, result in all_results.items():
+        if key == 'financial_metrics':
+            continue
+        elif key == 'multiples':
+            for mult_key, mult_result in result.items():
+                signals.append(mult_result['signal'])
+        elif isinstance(result, dict) and 'signal' in result:
+            signals.append(result['signal'])
+    
+    buy_count = signals.count('BUY')
+    hold_count = signals.count('HOLD')
+    sell_count = signals.count('SELL')
+    na_count = signals.count('N/A')
+    
+    print(f"\nSignal Summary:")
+    print(f"BUY: {buy_count}, HOLD: {hold_count}, SELL: {sell_count}, N/A: {na_count}")
