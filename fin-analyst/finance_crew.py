@@ -209,6 +209,7 @@ report_generation_task = Task(
     
     Your report should follow this structure:
     
+    
     1. **Investment Decision Matrix Table**:
        - Create a table showing each valuation method, its signal, and reasoning
        - Include: DCF, Payback Time, Owner Earnings Yield, Ben Graham Formula, P/E Multiples, 
@@ -254,6 +255,8 @@ def run_financial_analysis(query):
     """Run stock visualization analysis"""
     result = crew.kickoff(inputs={"query": query})
     return result.raw
+
+
 
 def estimate_stock_price(query):
     """Run comprehensive valuation analysis and generate investment report"""

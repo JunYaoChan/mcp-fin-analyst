@@ -137,7 +137,7 @@ data_retrieval_task = Task(
        - Revenue breakdown by segment (latest available)
        - Geographic revenue distribution
     
-    **Important**: Use yfinance for real-time data and supplement with web searches for the most current 
+    **Important**: Use search tools for real-time data and supplement with web searches for the most current 
     analyst estimates, recent earnings reports, and any material news from {CURRENT_DATE} or recent days.
     Always specify the exact date/period for each data point retrieved.""",
     expected_output=f"A complete CompanyFinancials object with all required financial metrics as of {CURRENT_DATE}",
@@ -200,68 +200,41 @@ valuation_task = Task(
     context=[data_retrieval_task],
 )
 
-# Task 3: Generate Investment Report (Updated with current date)
+# Task 3: Generate Investment Report (Fixed - removed template variables)
 report_task = Task(
-    description=f"""Create a comprehensive investment report for {{company}} dated {CURRENT_DATE} following this exact template:
+    description=f"""Create a comprehensive investment report for {{company}} dated {CURRENT_DATE} using the financial data and valuation metrics from previous tasks.
 
-    # Investment Analysis Report: {{company}}
-    **Report Date:** {CURRENT_DATE}
+    You must create a professional investment report that includes:
+
+    1. **Report Header**: Company name, current date ({CURRENT_DATE}), and current stock price
     
-    ## Current Price: ${{current_price}} (as of {CURRENT_DATE_SHORT})
+    2. **Investment Decision Matrix**: A table showing each valuation method, its signal (BUY/HOLD/SELL), and reasoning
     
-    ## Investment Decision Matrix
+    3. **Final Assessment**: Overall recommendation based on the majority of signals
     
-    | Method | Signal | Reason |
-    |--------|--------|---------|
-    | DCF | **{{dcf_signal}}** | {{dcf_reason}} |
-    | Payback Time | **{{payback_signal}}** | {{payback_reason}} |
-    | Owner Earnings Yield | **{{yield_signal}}** | {{yield_reason}} |
-    | Ben Graham Formula | **{{graham_signal}}** | {{graham_reason}} |
-    | P/E Multiples | **{{pe_signal}}** | {{pe_reason}} |
-    | Asset-Based | **{{asset_signal}}** | {{asset_reason}} |
-    | SOTP | **{{sotp_signal}}** | {{sotp_reason}} |
-    | DDM | **{{ddm_signal}}** | {{ddm_reason}} |
-    | PEG Ratios | **{{peg_signal}}** | {{peg_reason}} |
+    4. **Vote Tally**: Count of BUY, HOLD, SELL, and N/A signals from all methods
     
-    ## Final Assessment: **{{final_verdict}}**
+    5. **Key Considerations**: 
+       - Strengths supporting the primary signal
+       - Risks and cautionary factors
     
-    ### Vote Tally (as of {CURRENT_DATE}):
-    - **BUY:** {{buy_count}} methods
-    - **HOLD:** {{hold_count}} methods
-    - **SELL:** {{sell_count}} methods
-    - **N/A:** {{na_count}} methods
+    6. **Current Market Context**: How current market conditions affect the analysis
     
-    ## Key Considerations:
+    7. **Growth-Adjusted Analysis**: Assessment considering growth prospects
     
-    ### Why {{primary_signal}} Rather Than {{alternative_signal}}:
-    1. **{{strength_1_title}}:** {{strength_1_detail}}
-    2. **{{strength_2_title}}:** {{strength_2_detail}}
-    3. **{{strength_3_title}}:** {{strength_3_detail}}
-    4. **{{strength_4_title}}:** {{strength_4_detail}}
+    8. **Final Recommendation**: Clear actionable recommendation with target price ranges
     
-    ### Why Caution Is Warranted:
-    1. **{{risk_1_title}}:** {{risk_1_detail}}
-    2. **{{risk_2_title}}:** {{risk_2_detail}}
-    3. **{{risk_3_title}}:** {{risk_3_detail}}
-    4. **{{risk_4_title}}:** {{risk_4_detail}}
+    **Format Requirements**:
+    - Use markdown formatting
+    - Include tables for the decision matrix
+    - Bold key findings and signals
+    - Use headers and subheaders for organization
+    - Include specific numbers and percentages from the analysis
+    - Provide clear reasoning for each signal
     
-    ## Current Market Context ({CURRENT_DATE}):
-    {{market_context_analysis}}
+    **File Naming**: Save the report as '[COMPANY_TICKER]_investment_report_{CURRENT_DATE_SHORT}.md'
     
-    ## Growth-Adjusted Analysis:
-    {{growth_analysis}}
-    
-    ## Recommendation: **{{recommendation}}**
-    {{detailed_recommendation}}
-    
-    **Risk-Adjusted Target:** ${{target_low}}-${{target_high}} range represents more attractive entry points.
-    
-    **Next Review Date:** [30 days from {CURRENT_DATE}]
-    
-    ---
-    *Report generated on {CURRENT_DATE} using the most current available financial data.*
-    
-    Save this report as '{{company}}_investment_report_{CURRENT_DATE_SHORT}.md'""",
+    Use all the data from the CompanyFinancials and ValuationMetrics objects provided by previous tasks to populate the report with specific numbers, calculations, and recommendations.""",
     expected_output=f"A complete investment report dated {CURRENT_DATE} saved as a markdown file",
     agent=report_generator,
     context=[data_retrieval_task, valuation_task],

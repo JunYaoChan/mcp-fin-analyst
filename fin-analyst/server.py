@@ -1,5 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 from finance_crew import run_financial_analysis, estimate_stock_price
+from valuation_crew import run_valuation_analysis
 import json
 
 # create FastMCP instance
@@ -90,6 +91,17 @@ def run_code_and_show_plot() -> str:
         return "Code executed successfully. Plot should be displayed."
     except Exception as e:
         return f"Error executing code: {e}"
+@mcp.tool()
+def run_valuation_analysis_mcp(company: str) -> str:
+    """
+    Run valuation analysis for a company
+    """
+    try:
+        result = run_valuation_analysis(company)
+        return result
+    except Exception as e:
+        return f"Error running valuation analysis: {e}"
+
 
 @mcp.tool()
 def quick_valuation_metrics(ticker: str) -> str:
