@@ -42,14 +42,14 @@ A comprehensive financial analysis tool powered by CrewAI that provides intellig
 
 2. **Install dependencies**
    ```bash
-   pip install -e .
+   uv add mcp anthropic python-dotenv
    ```
 
 3. **Set up environment variables**
    Create an `env` file or set environment variables:
    ```bash
    DEEPSEEK_API_KEY="your-deepseek-api-key"
-   SERPER_API_KEY="your-serper-api-key"  # Optional
+   SERPER_API_KEY="your-serper-api-key" 
    ```
 
 4. **Run the MCP server**
@@ -65,6 +65,10 @@ The tool runs as an MCP server that can be integrated with Claude or other AI as
 
 ```bash
 python main.py
+```
+Inspector Testing : 
+```bash
+uv run mcp dev main.py
 ```
 
 ### Available MCP Tools
